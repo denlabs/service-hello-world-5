@@ -8,7 +8,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.tenyks.helloworld.greeting.domain.Greeting;
 import com.tenyks.helloworld.greeting.repository.GreetingRepository;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +54,23 @@ class HomePageIntegrationTest {
         List<Greeting> greetings = greetingRepository.findAll();
         assertThat(greetings).hasSize(1);
         assertThat(greetings.getFirst().getName()).isEqualTo("Alice");
+    }
+
+    @Test
+    void greetingShowsHumanReadableDateAndNeverTheRawIsoTimestamp() throws Exception {
+        String body = mockMvc.perform(post("/").param("name", "Alice"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Greeting persisted = greetingRepository.findAll().getFirst();
+        String expectedDate = DateTimeFormatter.ofPattern("MMMM d, uuuu", Locale.ENGLISH)
+                .format(persisted.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate());
+
+        assertThat(body).contains("Hello Alice, it is " + expectedDate);
+        assertThat(body).doesNotContain(persisted.getCreatedAt().toString());
+        assertThat(body).doesNotContainPattern("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}");
     }
 
     @Test
