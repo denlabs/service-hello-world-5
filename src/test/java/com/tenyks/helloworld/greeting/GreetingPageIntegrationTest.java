@@ -1,6 +1,7 @@
 package com.tenyks.helloworld.greeting;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,6 +15,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -55,6 +59,25 @@ class GreetingPageIntegrationTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.first").value(true))
                 .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test
+    @DisplayName("returns id, name, message and createdAt for each greeting")
+    void returnsAllGreetingFields() throws Exception {
+        Long newestId = greetingRepository
+                .findAll(PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "createdAt", "id")))
+                .getContent()
+                .getFirst()
+                .getId();
+
+        mockMvc.perform(get("/greetings").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.content[0].id").value(newestId))
+                .andExpect(jsonPath("$.content[0].name").value("User4"))
+                .andExpect(jsonPath("$.content[0].message").value("Hello, User4!"))
+                .andExpect(jsonPath("$.content[0].createdAt")
+                        .value(BASE_TIME.plus(4, ChronoUnit.MINUTES).toString()));
     }
 
     @Test
