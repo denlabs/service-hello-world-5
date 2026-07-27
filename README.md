@@ -31,6 +31,26 @@ java -jar target/service-hello-world-0.0.1-SNAPSHOT.jar
 
 The service listens on port `8080`. Override with `--server.port=<port>`.
 
+## API
+
+### `POST /greeting`
+
+Creates a greeting for the supplied name, persists it, and returns the stored record.
+
+Request body:
+
+```json
+{ "name": "World" }
+```
+
+Response `201 Created`:
+
+```json
+{ "id": 1, "name": "World", "message": "Hello, World!", "createdAt": "2026-01-01T00:00:00Z" }
+```
+
+A blank or missing `name` (or one longer than 100 characters) returns `400 Bad Request`.
+
 ## Database
 
 H2 runs in memory at `jdbc:h2:mem:helloworld` (user `sa`, empty password) and is
