@@ -51,39 +51,6 @@ Response `201 Created`:
 
 A blank or missing `name` (or one longer than 100 characters) returns `400 Bad Request`.
 
-### `GET /greetings`
-
-Returns stored greetings as a page, using the standard Spring pageable request
-parameters:
-
-| Parameter | Default | Notes |
-| --- | --- | --- |
-| `page` | `0` | Zero-based page index. |
-| `size` | `20` | Page size, capped at `100`. |
-| `sort` | `createdAt,desc` then `id,desc` | Repeatable, `property,(asc|desc)`. |
-
-Example: `GET /greetings?page=1&size=2&sort=createdAt,asc`
-
-Response `200 OK`:
-
-```json
-{
-  "content": [
-    { "id": 1, "name": "World", "message": "Hello, World!", "createdAt": "2026-01-01T00:00:00Z" }
-  ],
-  "page": 0,
-  "size": 20,
-  "totalElements": 1,
-  "totalPages": 1,
-  "first": true,
-  "last": true
-}
-```
-
-The envelope is an explicit DTO (`PageResponse`), so the JSON shape stays stable
-regardless of Spring Data's internal `Page` serialization. Requesting a page past
-the last one returns `200 OK` with an empty `content` array.
-
 ## Database
 
 H2 runs in memory at `jdbc:h2:mem:helloworld` (user `sa`, empty password) and is

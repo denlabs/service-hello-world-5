@@ -6,8 +6,8 @@ import com.tenyks.helloworld.greeting.dto.GreetingResponse;
 import com.tenyks.helloworld.greeting.dto.PageResponse;
 import com.tenyks.helloworld.greeting.repository.GreetingRepository;
 import java.time.Instant;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
