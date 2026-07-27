@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "platform": "azure-devops",
+  "ado": {
+    "_availableTypes": [
+      "User Story",
+      "Bug",
+      "Task"
+    ]
+  }
+}
