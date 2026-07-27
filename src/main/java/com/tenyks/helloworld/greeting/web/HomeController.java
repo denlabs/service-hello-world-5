@@ -9,8 +9,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,37 +45,80 @@ public class HomeController {
 
     @GetMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
-    public String home() {
-        return renderPage(HomeViewModel.blankForm());
+    public ResponseEntity<String> home() {
+        return page(HttpStatus.OK, HomeViewModel.blankForm());
     }
 
     @PostMapping(path = "/", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
-    public String submitGreeting(@RequestParam(name = "name", required = false) String name) {
+    public ResponseEntity<String> submitGreeting(
+            @RequestParam(name = "name", required = false) String name) {
         String submitted = name == null ? "" : name;
 
-        if (submitted.isBlank()) {
-            return renderPage(HomeViewModel.validationFailure(submitted, BLANK_NAME_MESSAGE));
-        }
-
-        CreateGreetingRequest request = new CreateGreetingRequest(submitted.trim());
-
-        Set<ConstraintViolation<CreateGreetingRequest>> violations = validator.validate(request);
-        if (!violations.isEmpty()) {
-            String message = violations.stream()
-                    .map(ConstraintViolation::getMessage)
-                    .sorted()
-                    .collect(Collectors.joining(" "));
-            return renderPage(HomeViewModel.validationFailure(submitted, message));
+        String validationMessage = validate(submitted);
+        if (validationMessage != null) {
+            return page(
+                    HttpStatus.OK, HomeViewModel.validationFailure(submitted, validationMessage));
         }
 
         try {
-            GreetingResponse response = greetingService.createGreeting(request);
-            return renderPage(HomeViewModel.fromGreeting(submitted, response));
-        } catch (RuntimeException ex) {
+            GreetingResponse response =
+                    greetingService.createGreeting(new CreateGreetingRequest(submitted.trim()));
+            if (isErrorResponse(response)) {
+                log.warn("Greeting service returned an unusable response: {}", response);
+                return page(
+                        HttpStatus.OK,
+                        HomeViewModel.serviceFailure(submitted, SERVICE_ERROR_MESSAGE));
+            }
+            return page(HttpStatus.OK, HomeViewModel.fromGreeting(submitted, response));
+        } catch (Exception ex) {
             log.warn("Greeting creation failed for homepage submission", ex);
-            return renderPage(HomeViewModel.serviceFailure(submitted, SERVICE_ERROR_MESSAGE));
+            return page(
+                    HttpStatus.OK, HomeViewModel.serviceFailure(submitted, SERVICE_ERROR_MESSAGE));
         }
+    }
+
+    /**
+     * Last-resort safety net: any unexpected failure while handling a homepage request is
+     * rendered as the ordinary page with an error message instead of a 500 error page.
+     */
+    @ExceptionHandler(Exception.class)
+    @ResponseBody
+    public ResponseEntity<String> handleUnexpectedFailure(Exception ex) {
+        log.warn("Unexpected homepage failure", ex);
+        return page(HttpStatus.OK, HomeViewModel.serviceFailure("", SERVICE_ERROR_MESSAGE));
+    }
+
+    /**
+     * Rejects blank names before the greeting service is consulted, so no row can be written
+     * for an empty or whitespace-only submission.
+     */
+    private String validate(String submitted) {
+        if (submitted.isBlank()) {
+            return BLANK_NAME_MESSAGE;
+        }
+        Set<ConstraintViolation<CreateGreetingRequest>> violations =
+                validator.validate(new CreateGreetingRequest(submitted.trim()));
+        if (violations.isEmpty()) {
+            return null;
+        }
+        return violations.stream()
+                .map(ConstraintViolation::getMessage)
+                .sorted()
+                .collect(Collectors.joining(" "));
+    }
+
+    private boolean isErrorResponse(GreetingResponse response) {
+        return response == null
+                || response.name() == null
+                || response.name().isBlank()
+                || response.createdAt() == null;
+    }
+
+    private ResponseEntity<String> page(HttpStatus status, HomeViewModel model) {
+        return ResponseEntity.status(status)
+                .contentType(MediaType.TEXT_HTML)
+                .body(renderPage(model));
     }
 
     private String renderPage(HomeViewModel model) {

@@ -79,4 +79,73 @@ class HomeControllerTest {
                         .string(Matchers.containsString(HomeController.SERVICE_ERROR_MESSAGE)))
                 .andExpect(content().string(Matchers.not(Matchers.containsString("it is"))));
     }
+
+    @Test
+    void emptyNameRendersValidationMessageAndNeverCallsService() throws Exception {
+        mockMvc.perform(post("/").param("name", ""))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .string(Matchers.containsString(HomeController.BLANK_NAME_MESSAGE)))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("it is"))))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("Hello "))));
+
+        then(greetingService).should(never()).createGreeting(any());
+    }
+
+    @Test
+    void missingNameParameterRendersValidationMessageAndNeverCallsService() throws Exception {
+        mockMvc.perform(post("/"))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .string(Matchers.containsString(HomeController.BLANK_NAME_MESSAGE)))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("it is"))));
+
+        then(greetingService).should(never()).createGreeting(any());
+    }
+
+    @Test
+    void tabAndNewlineOnlyNameIsRejected() throws Exception {
+        mockMvc.perform(post("/").param("name", "\t\n "))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .string(Matchers.containsString(HomeController.BLANK_NAME_MESSAGE)));
+
+        then(greetingService).should(never()).createGreeting(any());
+    }
+
+    @Test
+    void serviceErrorResponseRendersErrorMessageAndNoGreeting() throws Exception {
+        given(greetingService.createGreeting(any())).willReturn(null);
+
+        mockMvc.perform(post("/").param("name", "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .string(Matchers.containsString(HomeController.SERVICE_ERROR_MESSAGE)))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("it is"))));
+    }
+
+    @Test
+    void incompleteServiceResponseRendersErrorMessageAndNoGreeting() throws Exception {
+        given(greetingService.createGreeting(any()))
+                .willReturn(new GreetingResponse(1L, "Alice", "Hello, Alice!", null));
+
+        mockMvc.perform(post("/").param("name", "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .string(Matchers.containsString(HomeController.SERVICE_ERROR_MESSAGE)))
+                .andExpect(content().string(Matchers.not(Matchers.containsString("it is"))));
+    }
+
+    @Test
+    void serviceFailureResponseStatusIsNotServerError() throws Exception {
+        given(greetingService.createGreeting(any()))
+                .willThrow(new IllegalStateException("boom"));
+
+        int status = mockMvc.perform(post("/").param("name", "Alice"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        org.assertj.core.api.Assertions.assertThat(status).isLessThan(500);
+    }
 }
