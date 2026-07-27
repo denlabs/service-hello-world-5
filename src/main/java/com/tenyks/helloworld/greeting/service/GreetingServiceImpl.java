@@ -3,8 +3,10 @@ package com.tenyks.helloworld.greeting.service;
 import com.tenyks.helloworld.greeting.domain.Greeting;
 import com.tenyks.helloworld.greeting.dto.CreateGreetingRequest;
 import com.tenyks.helloworld.greeting.dto.GreetingResponse;
+import com.tenyks.helloworld.greeting.dto.PageResponse;
 import com.tenyks.helloworld.greeting.repository.GreetingRepository;
 import java.time.Instant;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,5 +31,11 @@ public class GreetingServiceImpl implements GreetingService {
                 .build();
 
         return GreetingResponse.from(greetingRepository.save(greeting));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<GreetingResponse> getGreetings(Pageable pageable) {
+        return PageResponse.from(greetingRepository.findAll(pageable).map(GreetingResponse::from));
     }
 }
