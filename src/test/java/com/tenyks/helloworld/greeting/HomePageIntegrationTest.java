@@ -54,6 +54,38 @@ class HomePageIntegrationTest {
     }
 
     @Test
+    void homepageSubmissionUsesSameServiceFlowAsPostGreeting() throws Exception {
+        mockMvc.perform(post("/").param("name", "Alice"))
+                .andExpect(status().isOk());
+
+        List<Greeting> greetings = greetingRepository.findAll();
+        assertThat(greetings).hasSize(1);
+        Greeting persisted = greetings.getFirst();
+        assertThat(persisted.getName()).isEqualTo("Alice");
+        assertThat(persisted.getMessage()).isEqualTo("Hello, Alice!");
+        assertThat(persisted.getCreatedAt()).isNotNull();
+        assertThat(persisted.getId()).isNotNull();
+    }
+
+    @Test
+    void eachSuccessfulSubmissionInsertsExactlyOneRow() throws Exception {
+        mockMvc.perform(post("/").param("name", "Alice")).andExpect(status().isOk());
+        assertThat(greetingRepository.count()).isEqualTo(1);
+
+        mockMvc.perform(post("/").param("name", "Bob")).andExpect(status().isOk());
+        assertThat(greetingRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void submittingOverlongNameWritesNoRowAndDoesNotFail() throws Exception {
+        mockMvc.perform(post("/").param("name", "A".repeat(101)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(Matchers.not(Matchers.containsString("it is"))));
+
+        assertThat(greetingRepository.findAll()).isEmpty();
+    }
+
+    @Test
     void submittingBlankNameWritesNoRow() throws Exception {
         mockMvc.perform(post("/").param("name", "  "))
                 .andExpect(status().isOk())
